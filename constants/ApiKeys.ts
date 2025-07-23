@@ -1,7 +1,7 @@
 // For security, DO NOT commit this file to version control.
 // Add your Gemini API key here.
 
-export const GEMINI_API_KEY = 'YOUR_GEMINI_API_KEY'; 
+export const GEMINI_API_KEY = 'AIzaSyBSLl0AbbZJ5mn2at5ZIY-VlRf23Z2TMuA'; 
 
 export const FIREBASE_API_KEY = "AIzaSyCdcEH7BN6A6b-opjCZZxn-kyVM2pnOGoQ";
 export const FIREBASE_AUTH_DOMAIN = "kenzen-x1.firebaseapp.com";
