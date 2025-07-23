@@ -2,8 +2,8 @@ import { GEMINI_API_KEY } from '@/constants/ApiKeys';
 import { auth, db } from '@/firebase';
 import { GoogleGenerativeAI, SchemaType, Tool } from '@google/generative-ai';
 import { addDoc, collection, getDocs, Timestamp } from 'firebase/firestore';
-import { useState } from 'react';
-import { ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, Animated, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 // Initialize the Gemini AI model
@@ -99,6 +99,43 @@ const model = genAI.getGenerativeModel({
     model: "gemini-1.5-flash-latest",
 });
 
+const ToolCallBubble = ({ message, index }: { message: string, index: number }) => {
+    const fadeAnim = useRef(new Animated.Value(0)).current;
+    const slideAnim = useRef(new Animated.Value(10)).current;
+
+    useEffect(() => {
+        Animated.parallel([
+            Animated.timing(fadeAnim, {
+                toValue: 1,
+                duration: 300,
+                delay: index * 100,
+                useNativeDriver: true,
+            }),
+            Animated.timing(slideAnim, {
+                toValue: 0,
+                duration: 300,
+                delay: index * 100,
+                useNativeDriver: true,
+            })
+        ]).start();
+    }, [fadeAnim, slideAnim, index]);
+
+    return (
+        <Animated.View style={[
+            styles.messageBubble,
+            styles.aiMessage,
+            styles.toolCallBubble,
+            {
+                opacity: fadeAnim,
+                transform: [{ translateY: slideAnim }]
+            }
+        ]}>
+            <ActivityIndicator size="small" color="#FFF9FF" style={{ marginRight: 10 }} />
+            <Text style={styles.messageText}>{message}</Text>
+        </Animated.View>
+    );
+};
+
 
 export default function AIScreen() {
   const [messages, setMessages] = useState([
@@ -106,6 +143,7 @@ export default function AIScreen() {
   ]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const [toolCallMessages, setToolCallMessages] = useState<string[]>([]);
 
   const handleSend = async () => {
     if (input.trim().length === 0) return;
@@ -115,6 +153,7 @@ export default function AIScreen() {
     const currentInput = input;
     setInput('');
     setLoading(true);
+    setToolCallMessages([]);
 
     try {
       const chat = model.startChat({tools});
@@ -123,33 +162,41 @@ export default function AIScreen() {
       
       const functionCalls = response.functionCalls();
       if(functionCalls && functionCalls.length > 0) {
-        for(const fnCall of functionCalls) {
-            const fnName = fnCall.name;
-            const fnArgs = fnCall.args;
-            let apiResponse;
+        const toolCallResponses = await Promise.all(functionCalls.map(async (fnCall) => {
+          const fnName = fnCall.name;
+          const fnArgs = fnCall.args;
 
-            if (fnName === 'getSchedule') {
-                apiResponse = await getSchedule();
-            } else if (fnName === 'scheduleEvent') {
-                apiResponse = await scheduleEvent(fnArgs as any);
-            } else {
-                continue; // Or handle unknown function
+          let message = `Calling tool: ${fnName}...`;
+          if(fnName === 'getSchedule') message = 'Checking your schedule...';
+          if(fnName === 'scheduleEvent') message = `Scheduling "${(fnArgs as any).title}"...`;
+
+          setToolCallMessages(prev => [...prev, message]);
+          
+          let apiResponse;
+          if (fnName === 'getSchedule') {
+              apiResponse = await getSchedule();
+          } else if (fnName === 'scheduleEvent') {
+              apiResponse = await scheduleEvent(fnArgs as any);
+          } else {
+              apiResponse = { error: `Function ${fnName} not found.` };
+          }
+
+          return {
+            functionResponse: {
+              name: fnName,
+              response: apiResponse,
             }
-            
-            const fnResponseResult = await chat.sendMessage([
-                {
-                    functionResponse: {
-                        name: fnName,
-                        response: apiResponse,
-                    }
-                }
-            ]);
-            
-            const {response: finalResponse} = fnResponseResult;
-            const text = finalResponse.text();
-            const aiMessage = { id: Date.now().toString() + '-ai', text, sender: 'ai' };
-            setMessages(prev => [...prev, aiMessage]);
-        }
+          }
+        }));
+
+        setToolCallMessages(prev => [...prev, 'Thinking...']);
+
+        const fnResponseResult = await chat.sendMessage(toolCallResponses);
+        const {response: finalResponse} = fnResponseResult;
+        const text = finalResponse.text();
+        const aiMessage = { id: Date.now().toString() + '-ai', text, sender: 'ai' };
+        setMessages(prev => [...prev, aiMessage]);
+
       } else {
         const text = response.text();
         const aiMessage = { id: Date.now().toString() + '-ai', text, sender: 'ai' };
@@ -162,6 +209,7 @@ export default function AIScreen() {
       setMessages(prev => [...prev, errorMessage]);
     } finally {
         setLoading(false);
+        setToolCallMessages([]);
     }
   };
 
@@ -178,7 +226,10 @@ export default function AIScreen() {
               <Text style={styles.messageText}>{msg.text}</Text>
             </View>
           ))}
-           {loading && (
+           {toolCallMessages.map((msg, index) => (
+             <ToolCallBubble key={`tool-${index}`} message={msg} index={index} />
+            ))}
+           {loading && toolCallMessages.length === 0 && (
             <View style={[styles.messageBubble, styles.aiMessage]}>
               <ActivityIndicator size="small" color="#FFFFFF" />
             </View>
@@ -227,6 +278,10 @@ const styles = StyleSheet.create({
     aiMessage: {
         backgroundColor: '#282828',
         alignSelf: 'flex-start',
+    },
+    toolCallBubble: {
+        flexDirection: 'row',
+        alignItems: 'center',
     },
     messageText: {
         color: 'white',
