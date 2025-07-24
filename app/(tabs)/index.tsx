@@ -1,6 +1,6 @@
+import { useAuth } from '@/context/AuthContext';
 import { auth, db } from '@/firebase';
 import { addDays, eachDayOfInterval, endOfWeek, format, isSameDay, startOfWeek } from 'date-fns';
-import { signOut } from 'firebase/auth';
 import { addDoc, collection, getDocs, Timestamp } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
 import { Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
@@ -131,6 +131,7 @@ export default function HomeScreen() {
   const [viewMode, setViewMode] = useState<ViewMode>('Day');
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
+  const { logout } = useAuth();
 
 
   const populateDummyData = async (userId: string) => {
@@ -187,7 +188,7 @@ export default function HomeScreen() {
   }, []);
 
   const handleLogout = async () => {
-    await signOut(auth);
+    await logout();
   };
 
   const todaysEvents = events.filter(event => isSameDay(event.start, new Date()));
