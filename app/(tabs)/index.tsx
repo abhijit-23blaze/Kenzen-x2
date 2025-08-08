@@ -29,12 +29,17 @@ interface Event {
     start: Date;
     end: Date;
     color: string;
+    name?: string; // For new events
+    location?: string;
+    thumbnail?: string;
+    emoji?: string;
+    eventType?: string;
+    recurring?: string;
+    duration?: number;
 }
-
 
 const HOUR_HEIGHT = 60;
 type ViewMode = 'Day' | 'Week' | 'Month' | 'Year';
-
 
 // --- DAY VIEW COMPONENT ---
 const DayView = ({ eventsForDay }: { eventsForDay: Event[] }) => {
@@ -76,7 +81,7 @@ const DayView = ({ eventsForDay }: { eventsForDay: Event[] }) => {
               ]}
               onPress={() => openModal(event)}
             >
-              <Text style={styles.eventTitle}>{event.title}</Text>
+              <Text style={styles.eventTitle}>{event.title || event.name}</Text>
               <Text style={styles.eventTime}>{`${format(event.start, 'hh:mm a')} - ${format(event.end, 'hh:mm a')}`}</Text>
             </TouchableOpacity>
           ))}
@@ -91,9 +96,12 @@ const DayView = ({ eventsForDay }: { eventsForDay: Event[] }) => {
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>{selectedEvent?.title}</Text>
+            <Text style={styles.modalTitle}>{selectedEvent?.title || selectedEvent?.name}</Text>
             <Text style={styles.modalTime}>{selectedEvent ? `${format(selectedEvent.start, 'EEEE, MMMM d')} • ${format(selectedEvent.start, 'hh:mm a')} - ${format(selectedEvent.end, 'hh:mm a')}`: ''}</Text>
             <Text style={styles.modalDescription}>{selectedEvent?.description}</Text>
+            {selectedEvent?.location && (
+              <Text style={styles.modalLocation}>📍 {selectedEvent.location}</Text>
+            )}
             <TouchableOpacity style={styles.closeButton} onPress={() => setModalVisible(false)}>
               <Text style={styles.closeButtonText}>Close</Text>
             </TouchableOpacity>
@@ -134,12 +142,12 @@ export default function HomeScreen() {
   const [viewMode, setViewMode] = useState<ViewMode>('Day');
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const { logout } = useAuth();
   const router = useRouter();
 
-
   const populateDummyData = async (userId: string) => {
-    const eventsCollectionRef = collection(db, 'users', userId, 'events');
+    const eventsCollectionRef = collection(db, 'users', userId, 'upcoming');
     for (const event of dummyEvents) {
       await addDoc(eventsCollectionRef, {
         ...event,
@@ -149,15 +157,15 @@ export default function HomeScreen() {
     }
   };
 
-  useEffect(() => {
-    const fetchEvents = async () => {
-      const userId = auth.currentUser?.uid;
-      if (!userId) {
-        setLoading(false);
-        return;
-      };
+  const fetchEvents = async () => {
+    const userId = auth.currentUser?.uid;
+    if (!userId) {
+      setLoading(false);
+      return;
+    };
 
-      const eventsCollectionRef = collection(db, 'users', userId, 'events');
+    try {
+      const eventsCollectionRef = collection(db, 'users', userId, 'upcoming');
       const querySnapshot = await getDocs(eventsCollectionRef);
 
       if(querySnapshot.empty) {
@@ -168,8 +176,10 @@ export default function HomeScreen() {
             return {
                 ...data,
                 id: doc.id,
-                start: data.start.toDate(),
-                end: data.end.toDate(),
+                start: data.startDate ? data.startDate.toDate() : data.start.toDate(),
+                end: data.endDate ? data.endDate.toDate() : data.end.toDate(),
+                title: data.name || data.title,
+                color: data.color || '#841584',
             } as unknown as Event;
         });
         setEvents(fetchedEvents);
@@ -179,17 +189,30 @@ export default function HomeScreen() {
             return {
                 ...data,
                 id: doc.id,
-                start: data.start.toDate(),
-                end: data.end.toDate(),
+                start: data.startDate ? data.startDate.toDate() : data.start.toDate(),
+                end: data.endDate ? data.endDate.toDate() : data.end.toDate(),
+                title: data.name || data.title,
+                color: data.color || '#841584',
             } as unknown as Event;
         });
         setEvents(fetchedEvents);
       }
+    } catch (error) {
+      console.error('Error fetching events:', error);
+    } finally {
       setLoading(false);
-    };
+      setRefreshing(false);
+    }
+  };
 
+  useEffect(() => {
     fetchEvents();
   }, []);
+
+  const handleRefresh = () => {
+    setRefreshing(true);
+    fetchEvents();
+  };
 
   const handleLogout = async () => {
     await logout();
@@ -205,9 +228,18 @@ export default function HomeScreen() {
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.header}>
         <Text style={styles.headerDate}>{format(new Date(), 'MMMM d, yyyy')}</Text>
-        <TouchableOpacity onPress={handleLogout}>
-          <Text style={styles.logoutText}>Logout</Text>
-        </TouchableOpacity>
+        <View style={styles.headerButtons}>
+          <TouchableOpacity style={styles.refreshButton} onPress={handleRefresh}>
+            <MaterialCommunityIcons 
+              name="refresh" 
+              size={20} 
+              color="#B3B3B3" 
+            />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={handleLogout}>
+            <Text style={styles.logoutText}>Logout</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       <View style={styles.viewModeContainer}>
@@ -245,8 +277,25 @@ export default function HomeScreen() {
 // --- STYLES ---
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: '#121212' },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 15, borderBottomWidth: 1, borderBottomColor: '#282828' },
+  header: { 
+    flexDirection: 'row', 
+    justifyContent: 'space-between', 
+    alignItems: 'center', 
+    padding: 15, 
+    borderBottomWidth: 1, 
+    borderBottomColor: '#282828' 
+  },
   headerDate: { color: '#FFFFFF', fontSize: 20, fontWeight: 'bold' },
+  headerButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 15,
+  },
+  refreshButton: {
+    padding: 8,
+    borderRadius: 20,
+    backgroundColor: '#1E1E1E',
+  },
   logoutText: { color: '#B3B3B3', fontSize: 16 },
   viewModeContainer: { flexDirection: 'row', justifyContent: 'space-around', backgroundColor: '#181818', paddingVertical: 10 },
   viewModeButton: { paddingVertical: 8, paddingHorizontal: 16, borderRadius: 20 },
@@ -302,6 +351,11 @@ const styles = StyleSheet.create({
   modalDescription: {
     fontSize: 16,
     color: '#FFFFFF',
+    marginBottom: 10,
+  },
+  modalLocation: {
+    fontSize: 14,
+    color: '#B3B3B3',
     marginBottom: 20,
   },
   closeButton: {
