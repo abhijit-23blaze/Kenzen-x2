@@ -20,8 +20,21 @@ import {
     TouchableWithoutFeedback,
     View
 } from 'react-native';
-import EmojiSelector from 'react-native-emoji-selector';
 import { SafeAreaView } from 'react-native-safe-area-context';
+
+// Predefined list of common emojis
+const EMOJI_LIST = [
+    '😀', '😃', '😄', '😁', '😆', '😅', '😂', '🤣', '😊', '😇',
+    '🙂', '🙃', '😉', '😌', '😍', '🥰', '😘', '😗', '😙', '😚',
+    '😋', '😛', '😝', '😜', '🤪', '🤨', '🧐', '🤓', '😎', '🤩',
+    '🥳', '😏', '😒', '😞', '😔', '😟', '😕', '🙁', '☹️', '😣',
+    '😖', '😫', '😩', '🥺', '😢', '😭', '😤', '😠', '😡', '🤬',
+    '🤯', '😳', '🥵', '🥶', '😱', '😨', '😰', '😥', '😓', '🤗',
+    '🤔', '🤭', '🤫', '🤥', '😶', '😐', '😑', '😯', '😦', '😧',
+    '😮', '😲', '🥱', '😴', '🤤', '😪', '😵', '🤐', '🥴', '🤢',
+    '🤮', '🤧', '😷', '🤒', '🤕', '🤑', '🤠', '💩', '🤡', '👹',
+    '👺', '👻', '👽', '👾', '🤖', '😈', '👿', '💀', '☠️', '👻'
+];
 
 export default function CreateEventScreen() {
     const router = useRouter();
@@ -359,16 +372,23 @@ export default function CreateEventScreen() {
                 >
                     <TouchableWithoutFeedback>
                         <View style={styles.emojiModalContent}>
-                            <View style={{ flex: 1 }}>
-                                <EmojiSelector
-                                    onEmojiSelected={selectedEmoji => {
-                                        setEmoji(selectedEmoji);
-                                        setEmojiModalVisible(false);
-                                    }}
-                                    showSearchBar={false}
-                                    columns={8}
-                                />
-                            </View>
+                            <Text style={styles.modalTitle}>Select Emoji</Text>
+                            <ScrollView style={styles.emojiScrollView}>
+                                <View style={styles.emojiGrid}>
+                                    {EMOJI_LIST.map((emojiChar, index) => (
+                                        <TouchableOpacity
+                                            key={index}
+                                            style={styles.emojiItem}
+                                            onPress={() => {
+                                                setEmoji(emojiChar);
+                                                setEmojiModalVisible(false);
+                                            }}
+                                        >
+                                            <Text style={styles.emojiChar}>{emojiChar}</Text>
+                                        </TouchableOpacity>
+                                    ))}
+                                </View>
+                            </ScrollView>
                         </View>
                     </TouchableWithoutFeedback>
                 </TouchableOpacity>
@@ -538,11 +558,33 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
     },
     emojiModalContent: {
-        height: '50%',
+        height: '60%',
         backgroundColor: '#282828',
         borderTopLeftRadius: 20,
         borderTopRightRadius: 20,
-        paddingTop: 10,
+        paddingTop: 20,
         paddingBottom: 20,
+    },
+    emojiScrollView: {
+        flex: 1,
+        width: '100%',
+    },
+    emojiGrid: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        justifyContent: 'space-around',
+        paddingHorizontal: 20,
+    },
+    emojiItem: {
+        width: 50,
+        height: 50,
+        justifyContent: 'center',
+        alignItems: 'center',
+        margin: 5,
+        borderRadius: 8,
+        backgroundColor: '#1E1E1E',
+    },
+    emojiChar: {
+        fontSize: 24,
     }
 }); 
