@@ -1,6 +1,9 @@
 import { useAuth } from '@/context/AuthContext';
 import { auth, db } from '@/firebase';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { addDays, eachDayOfInterval, endOfWeek, format, isSameDay, startOfWeek } from 'date-fns';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useRouter } from 'expo-router';
 import { addDoc, collection, getDocs, Timestamp } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
 import { Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
@@ -132,6 +135,7 @@ export default function HomeScreen() {
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
   const { logout } = useAuth();
+  const router = useRouter();
 
 
   const populateDummyData = async (userId: string) => {
@@ -223,6 +227,17 @@ export default function HomeScreen() {
       {/* Placeholder for other views */}
       {viewMode === 'Month' && <View style={styles.placeholder}><Text style={styles.logoutText}>Month View Coming Soon</Text></View>}
       {viewMode === 'Year' && <View style={styles.placeholder}><Text style={styles.logoutText}>Year View Coming Soon</Text></View>}
+    
+      <TouchableOpacity style={styles.fab} onPress={() => router.push('/createEvent')}>
+        <LinearGradient
+            colors={['#D81B60', '#8E24AA']}
+            style={styles.fabGradient}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+        >
+            <MaterialCommunityIcons name="plus" size={32} color="#FFFFFF" />
+        </LinearGradient>
+      </TouchableOpacity>
     </SafeAreaView>
   );
 }
@@ -300,5 +315,24 @@ const styles = StyleSheet.create({
     color: 'white',
     fontWeight: 'bold',
     textAlign: 'center',
-  }
+  },
+  fab: {
+    position: 'absolute',
+    width: 60,
+    height: 60,
+    right: 30,
+    bottom: 30,
+    borderRadius: 30,
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    overflow: 'hidden',
+  },
+  fabGradient: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 });
