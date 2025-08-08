@@ -2,7 +2,8 @@
 
 # dependencies
 node_modules/
-
+constants
+constants/ApiKeys.ts
 # Expo
 .expo/
 dist/
@@ -37,4 +38,5 @@ yarn-error.*
 *.tsbuildinfo
 
 app-example
-./constants/ApiKeys.ts
+
+

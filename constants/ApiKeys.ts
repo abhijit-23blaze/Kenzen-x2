@@ -1,5 +1,3 @@
-// For security, DO NOT commit this file to version control.
-// Add your Gemini API key here.
 
 export const GEMINI_API_KEY = 'AIzaSyBSLl0AbbZJ5mn2at5ZIY-VlRf23Z2TMuA'; 
 
